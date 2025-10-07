@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driving License Verification - DeepVue</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+
+        .result.success {
+            border-left: 4px solid #28a745;
+        }
+
+        .result.error {
+            border-left: 4px solid #dc3545;
+            background: #ffe6e6;
+        }
+
+        .result h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .result-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: #555;
+            display: inline-block;
+            min-width: 150px;
+        }
+
+        .result-value {
+            color: #333;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+            font-size: 13px;
+            color: #856404;
+        }
+
+        .note strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚗 Driving License Verification</h1>
+        <p class="subtitle">Powered by DeepVue API</p>
+
+        <form id="verificationForm">
+            <div class="form-group">
+                <label for="dlNumber">Driving License Number *</label>
+                <input 
+                    type="text" 
+                    id="dlNumber" 
+                    name="dlNumber" 
+                    placeholder="Enter DL Number (e.g., HR0619850034761)"
+                    required
+                    pattern="[A-Z]{2}[0-9]{13}"
+                    title="DL Number should be in format: 2 letters followed by 13 digits"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="dob">Date of Birth *</label>
+                <input 
+                    type="date" 
+                    id="dob" 
+                    name="dob" 
+                    required
+                >
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">Verify License</button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 15px; color: #666;" id="loadingText">Verifying your license...</p>
+        </div>
+
+        <div class="result" id="result"></div>
+
+        <div class="note">
+            <strong>Note:</strong>
+            Please ensure you enter the correct DL number and date of birth. The verification process may take a few seconds.
+        </div>
+    </div>
+
+    <script>
+        const API_CONFIG = {
+            clientId: 'fafcc23cda',
+            clientSecret: '3319435ecc9249e3b46f34f83c386674',
+            baseUrl: 'https://production.deepvue.tech/v1'
+        };
+
+        let accessToken = null;
+
+        // Get OAuth token
+        async function getAccessToken() {
+            try {
+                // Note: In production, this should be done on the backend for security
+                // This is a simplified version for demonstration
+                const formData = new FormData();
+                formData.append('client_id', API_CONFIG.clientId);
+                formData.append('client_secret', API_CONFIG.clientSecret);
+
+                const response = await fetch('https://production.deepvue.tech/v1/authorize', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to get access token: ${errorText}`);
+                }
+
+                const data = await response.json();
+                accessToken = data.access_token || data.token;
+                return accessToken;
+            } catch (error) {
+                console.error('Error getting access token:', error);
+                throw error;
+            }
+        }
+
+        // Post DL verification request
+        async function postDLVerification(dlNumber, dob) {
+            if (!accessToken) {
+                await getAccessToken();
+            }
+
+            const url = `${API_CONFIG.baseUrl}/verification/post-driving-license?dl_number=${dlNumber}&dob=${dob}`;
+
+            console.log('POST URL:', url);
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'x-api-key': API_CONFIG.clientSecret
+                }
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('POST Error:', errorText);
+                let errorData;
+                try {
+                    errorData = JSON.parse(errorText);
+                } catch (e) {
+                    throw new Error(`Failed to initiate verification: ${errorText}`);
+                }
+                throw new Error(errorData.message || 'Failed to initiate verification');
+            }
+
+            return await response.json();
+        }
+
+        // Get DL verification result with polling
+        async function getDLVerification(requestId, maxAttempts = 10) {
+            if (!accessToken) {
+                await getAccessToken();
+            }
+
+            const url = `${API_CONFIG.baseUrl}/verification/get-driving-license?request_id=${requestId}`;
+
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                console.log(`GET URL (Attempt ${attempt}/${maxAttempts}):`, url);
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'x-api-key': API_CONFIG.clientSecret
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('GET Error:', errorText);
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(errorText);
+                    } catch (e) {
+                        throw new Error(`Failed to get verification result: ${errorText}`);
+                    }
+                    throw new Error(errorData.message || 'Failed to get verification result');
+                }
+
+                const data = await response.json();
+                console.log('GET Response:', data);
+
+                // Check if data is an array and get the first item
+                const result = Array.isArray(data) ? data[0] : data;
+
+                // Update loading message
+                const loadingText = document.getElementById('loadingText');
+                if (loadingText) {
+                    loadingText.textContent = `Processing... (Attempt ${attempt + 1}/${maxAttempts})`;
+                }
+
+                // Check status
+                if (result.status === 'completed' || result.status === 'success') {
+                    return data;
+                } else if (result.status === 'failed' || result.status === 'error') {
+                    throw new Error(result.message || result.error || 'Verification failed');
+                } else if (result.status === 'in_progress' || result.status === 'pending') {
+                    // Still processing, wait and retry
+                    if (attempt < maxAttempts) {
+                        console.log(`Status: ${result.status}. Waiting 3 seconds before retry...`);
+                        if (loadingText) {
+                            loadingText.textContent = `Verification in progress... Checking again in 3 seconds (${attempt + 1}/${maxAttempts})`;
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                        continue;
+                    } else {
+                        throw new Error('Verification is taking longer than expected. Please try again later.');
+                    }
+                } else {
+                    // Unknown status, return the data anyway
+                    return data;
+                }
+            }
+
+            throw new Error('Maximum polling attempts reached');
+        }
+
+        // Display result
+        function displayResult(data, isError = false) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            
+            if (isError) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Verification Failed</h3>
+                    <p class="error-message">${data}</p>
+                `;
+                return;
+            }
+
+            resultDiv.className = 'result success';
+            
+            let html = '<h3>✅ Verification Successful</h3>';
+            
+            // Handle array response from DeepVue API
+            if (Array.isArray(data) && data[0]) {
+                const result = data[0];
+                const sourceOutput = result.result?.source_output;
+                
+                if (sourceOutput) {
+                    // Personal Information
+                    html += '<h4 style="margin: 20px 0 10px 0; color: #667eea;">👤 Personal Information</h4>';
+                    
+                    if (sourceOutput.name) {
+                        html += '<div class="result-item">';
+                        html += `<span class="result-label">Name:</span>`;
+                        html += `<span class="result-value">${sourceOutput.name}</span>`;
+                        html += '</div>';
+                    }
+                    
+                    if (sourceOutput.relatives_name) {
+                        html += '<div class="result-item">';
+                        html += `<span class="result-label">Father's Name:</span>`;
+                        html += `<span class="result-value">${sourceOutput.relatives_name}</span>`;
+                        html += '</div>';
+                    }
+                    
+                    if (sourceOutput.dob) {
+                        html += '<div class="result-item">';
+                        html += `<span class="result-label">Date of Birth:</span>`;
+                        html += `<span class="result-value">${new Date(sourceOutput.dob).toLocaleDateString('en-IN')}</span>`;
+                        html += '</div>';
+                    }
+                    
+                    if (sourceOutput.gender) {
+                        html += '<div class="result-item">';
+                        html += `<span class="result-label">Gender:</span>`;
+                        html += `<span class="result-value">${sourceOutput.gender}</span>`;
+                        html += '</div>';
+                    }
+                    
+                    if (sourceOutput.address) {
+                        html += '<div class="result-item">';
+                        html += `<span class="result-label">Address:</span>`;
+                        html += `<span class="result-value">${sourceOutput.address}</span>`;
+                        html += '</div>';
+                    }
+                    
+                    // License Information
+                    html += '<h4 style="margin: 20px 0 10px 0; color: #667eea;">🚗 License Information</h4>';
+                    
+                    if (sourceOutput.id_number) {
+                        html += '<div class="result-item">';
+                        html += `<span class="result-label">License Number:</span>`;
+                        html += `<span class="result-value">${sourceOutput.id_number}</span>`;
+                        html += '</div>';
+                    }
+                    
+                    if (sourceOutput.issuing_rto_name) {
+                        html += '<div class="result-item">';
+                        html += `<span class="result-label">Issuing RTO:</span>`;
+                        html += `<span class="result-value">${sourceOutput.issuing_rto_name}</span>`;
+                        html += '</div>';
+                    }
+                    
+                    if (sourceOutput.date_of_issue) {
+                        html += '<div class="result-item">';
+                        html += `<span class="result-label">Date of Issue:</span>`;
+                        html += `<span class="result-value">${new Date(sourceOutput.date_of_issue).toLocaleDateString('en-IN')}</span>`;
+                        html += '</div>';
+                    }
+                    
+                    // Validity Information
+                    if (sourceOutput.nt_validity_from || sourceOutput.nt_validity_to) {
+                        html += '<h4 style="margin: 20px 0 10px 0; color: #667eea;">📅 Validity Information</h4>';
+                        
+                        if (sourceOutput.nt_validity_from) {
+                            html += '<div class="result-item">';
+                            html += `<span class="result-label">Valid From:</span>`;
+                            html += `<span class="result-value">${new Date(sourceOutput.nt_validity_from).toLocaleDateString('en-IN')}</span>`;
+                            html += '</div>';
+                        }
+                        
+                        if (sourceOutput.nt_validity_to) {
+                            html += '<div class="result-item">';
+                            html += `<span class="result-label">Valid Till:</span>`;
+                            html += `<span class="result-value">${new Date(sourceOutput.nt_validity_to).toLocaleDateString('en-IN')}</span>`;
+                            html += '</div>';
+                        }
+                    }
+                    
+                    // COV Details (Class of Vehicle)
+                    if (sourceOutput.cov_details && sourceOutput.cov_details.length > 0) {
+                        html += '<h4 style="margin: 20px 0 10px 0; color: #667eea;">🚙 Vehicle Classes (COV)</h4>';
+                        
+                        const covDescriptions = {
+                            'LMV': 'Light Motor Vehicle (Car)',
+                            'MCWG': 'Motorcycle With Gear',
+                            'MCWOG': 'Motorcycle Without Gear (Scooter)',
+                            'HMV': 'Heavy Motor Vehicle',
+                            'TRANS': 'Transport Vehicle',
+                            'PSV': 'Public Service Vehicle'
+                        };
+                        
+                        sourceOutput.cov_details.forEach((cov, index) => {
+                            html += '<div class="result-item">';
+                            html += `<span class="result-label">${cov.cov}:</span>`;
+                            html += `<span class="result-value">${covDescriptions[cov.cov] || 'Vehicle Class'} - Issued: ${new Date(cov.issue_date).toLocaleDateString('en-IN')}</span>`;
+                            html += '</div>';
+                        });
+                    }
+                    
+                    // Status
+                    html += '<div class="result-item" style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #e0e0e0;">';
+                    html += `<span class="result-label">Verification Status:</span>`;
+                    html += `<span class="result-value" style="color: #28a745; font-weight: bold;">${sourceOutput.status === 'id_found' ? 'ID Found & Verified' : sourceOutput.status}</span>`;
+                    html += '</div>';
+                } else {
+                    html += '<div class="result-item">';
+                    html += `<span class="result-value">Verification completed but no detailed data available</span>`;
+                    html += '</div>';
+                }
+            } else {
+                html += '<div class="result-item">';
+                html += `<span class="result-value">Verification completed successfully</span>`;
+                html += '</div>';
+            }
+
+            resultDiv.innerHTML = html;
+        }
+
+        // Handle form submission
+        document.getElementById('verificationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const dlNumber = document.getElementById('dlNumber').value.trim().toUpperCase();
+            const dob = document.getElementById('dob').value;
+
+            // Date is already in YYYY-MM-DD format from input
+            const formattedDob = dob;
+
+            const submitBtn = document.getElementById('submitBtn');
+            const loadingDiv = document.getElementById('loading');
+            const resultDiv = document.getElementById('result');
+
+            // Reset UI
+            submitBtn.disabled = true;
+            loadingDiv.style.display = 'block';
+            resultDiv.style.display = 'none';
+
+            try {
+                // Step 1: Post DL verification request
+                const postResponse = await postDLVerification(dlNumber, formattedDob);
+                console.log('Post response:', postResponse);
+
+                // Extract request_id from response
+                const requestId = postResponse.request_id || postResponse.data?.request_id;
+
+                if (!requestId) {
+                    throw new Error('No request ID received from the API');
+                }
+
+                // Step 2: Get DL verification result (with polling for in_progress status)
+                const getResponse = await getDLVerification(requestId);
+                console.log('Get response:', getResponse);
+
+                // Display result
+                displayResult(getResponse);
+
+            } catch (error) {
+                console.error('Verification error:', error);
+                displayResult(error.message, true);
+            } finally {
+                submitBtn.disabled = false;
+                loadingDiv.style.display = 'none';
+            }
+        });
+
+        // Set max date to today for DOB input
+        document.getElementById('dob').max = new Date().toISOString().split('T')[0];
+    </script>
+</body>
+</html>
